@@ -1,0 +1,536 @@
+
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import javax.naming.NamingEnumeration;
+import javax.naming.NamingException;
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
+import javax.naming.directory.DirContext;
+import javax.naming.directory.InitialDirContext;
+import javax.naming.directory.SearchControls;
+import javax.naming.directory.SearchResult;
+
+import org.apache.commons.lang.StringUtils;
+
+
+public class LDAPConnectionInfo
+{
+    /**
+     * Fetch parent groups for a group
+     * @param inGroup
+     * @param inDirContxt
+     * @return list of parent groups
+     */
+    private static List<String> fetchParentGroup( String inGroup, DirContext inDirContxt )
+        throws NamingException, CorpADFetchException
+    {
+        String theBaseDN = LDAPManager.getProperty( ADAMConstants.GROUPS_BASE_DN );
+        String theMemberAttrib = LDAPManager.getProperty( ADAMConstants.MEMBER_OF_ATTRIB );
+        List<String> theParents = null;
+        if ( StringUtils.isNotBlank( theBaseDN ) && StringUtils.isNotBlank( theMemberAttrib ) )
+        {
+            StringBuilder theSearchStr = new StringBuilder( ADAMConstants.COMMON_NAME );
+            theSearchStr.append( inGroup );
+            NamingEnumeration<SearchResult> theEnum = null;
+            Attribute theParentAttribute = null;
+            SearchResult theSearchResult = null;
+            String theSearchTxt = null;
+            try
+            {
+                //Search in subtree as well and return only the attributes mentioned in returning attributes
+                SearchControls theControls = new SearchControls();
+                theControls.setSearchScope( SearchControls.SUBTREE_SCOPE );
+                theControls.setReturningAttributes( new String[]
+                { theMemberAttrib } );
+                theEnum = inDirContxt.search( theBaseDN, theSearchStr.toString(), theControls );
+                NamingEnumeration<? extends Attribute> theGroupAttributes = null;
+                if ( theEnum != null && theEnum.hasMoreElements() )
+                {
+                    while ( theEnum.hasMore() )
+                    {
+                        //Iterate through the search results
+                        theSearchResult = theEnum.next();
+                        if ( theSearchResult != null )
+                        {
+                            theGroupAttributes = theSearchResult.getAttributes().getAll();
+                            while ( theGroupAttributes.hasMoreElements() )
+                            {
+                                theParentAttribute = theGroupAttributes.next();
+                                if ( theParentAttribute != null )
+                                {
+                                    //Modify text for further parsing
+                                    theSearchTxt = StringUtils.removeStart( theParentAttribute
+                                            .toString(), theMemberAttrib
+                                            + ADAMConstants.COLON_SEPERATOR );
+                                    theParents = ADAMUtility.fetchMultipleAttributes( theSearchTxt );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                if ( theEnum != null )
+                {
+                    theEnum.close();
+                }
+            }
+        }
+        else
+        {
+            throw new CorpADFetchException( "Please check properties groups.base.dn,memberOf.attribute in ldap properties file" );
+        }
+        return theParents;
+    }
+    
+    
+    /**
+     * Return UserProfile bean with user details, in user profile parent group can be present
+     * @param userId
+     * @param inFetchParent
+     * @param inADGroupReqFlag 
+     * @return UserProfile
+     * @throws CorpADFetchException
+     */
+    public UserProfile fetchUserProfile( String inUserId,  boolean inFetchParent )
+        throws NamingException, CorpADFetchException
+    {
+        return fetchUserProfile( inUserId, inFetchParent, true );
+    }
+
+    /**
+     * Return UserProfile bean with user details
+     * The parameter inFetchParent , if true will return the parents of the groups in which he belongs as well
+     * as the groups in which he belongs
+     * If false, will return only the groups in which the user belongs
+     * @param userId
+     * @param inFetchParent
+     * @param inADGroupReqFlag 
+     * @return UserProfile
+     * @throws CorpADFetchException
+     */
+    public UserProfile fetchUserProfile( String inUserId,
+                                         boolean inFetchParent,
+                                         boolean inADGroupReqFlag )
+        throws NamingException, CorpADFetchException
+    {
+        Hashtable<String, String> theEnvParam = LDAPManager.getEnvParam();
+        UserProfile theUser = null;
+        if ( theEnvParam != null )
+        {
+            String theUserID = StringUtils.stripStart( inUserId, ADAMConstants.ZERO );
+            theUser = new UserProfile();
+            String theBaseDN = LDAPManager.getProperty( ADAMConstants.USER_BASE_DN );
+            String theFilter = LDAPManager.getProperty( ADAMConstants.USER_FETCH_FILTER );
+            String theSearchFields = LDAPManager.getProperty( ADAMConstants.ATTRIBUTES );
+            String theAttribPropMap = LDAPManager
+                    .getProperty( ADAMConstants.ATTRIBUTE_VS_PROPERTY );
+            String theMemberAttrib = LDAPManager.getProperty( ADAMConstants.MEMBER_OF_ATTRIB );
+            if ( StringUtils.isNotBlank( theBaseDN ) && StringUtils.isNotBlank( theFilter )
+                    && StringUtils.isNotBlank( theSearchFields )
+                    && StringUtils.isNotBlank( theAttribPropMap )
+                    && StringUtils.isNotBlank( theMemberAttrib ) )
+            {
+                theFilter = StringUtils.replace( theFilter, ADAMConstants.USER_PLACEHOLDER,
+                                                 theUserID );
+                String[] theAttrID = null;
+                if ( StringUtils.indexOf( theSearchFields, ADAMConstants.COMMA ) > -1 )
+                {
+                    theAttrID = StringUtils.split( theSearchFields, ADAMConstants.COMMA );
+                }
+                DirContext theDirContxt = null;
+                NamingEnumeration<SearchResult> theEnum = null;
+                try
+                {
+                    SearchControls theControls = new SearchControls();
+                    theControls.setSearchScope( SearchControls.SUBTREE_SCOPE );
+                    theControls.setReturningAttributes( theAttrID );
+                    theDirContxt = new InitialDirContext( theEnvParam );
+                    theEnum = theDirContxt.search( theBaseDN, theFilter, theControls );
+                    List<SearchResult> theSrchRslts = new ArrayList<SearchResult>();
+                    Set<String> theParents = null;
+                    if ( theEnum != null && theEnum.hasMoreElements()
+                            && StringUtils.isNotBlank( theAttribPropMap ) )
+                    {
+                        Map<String, String> theAttributePropertyLink = ADAMUtility
+                                .fetchAttributePropertyMap( theAttribPropMap );
+                        SearchResult theSearchResult = null;
+                        while ( theEnum.hasMore() )
+                        {
+                            theSearchResult = theEnum.next();
+                            theSrchRslts.add( theSearchResult );
+                        }
+                        if ( !theSrchRslts.isEmpty() )
+                        {
+                            theUser.setUserID( inUserId );
+                            theUser.setAuthorized( true );
+                            NamingEnumeration<? extends Attribute> theUserAttributes = theSrchRslts
+                                    .get( 0 ).getAttributes().getAll();
+                            theParents = new HashSet<String>();
+                            while ( theUserAttributes.hasMoreElements() )
+                            {
+                                fetchUserAttributes( inFetchParent, theUser, theMemberAttrib,
+                                                     theDirContxt, theParents,
+                                                     theAttributePropertyLink, theUserAttributes,
+                                                     inADGroupReqFlag );
+                            }
+                        }
+                    }
+                    //Fetch map with key as LDAP attribute name and value as UserBean property name 
+                }
+                finally
+                {
+                    if ( theDirContxt != null )
+                    {
+                        theDirContxt.close();
+                    }
+                    if ( theEnum != null )
+                    {
+                        theEnum.close();
+                    }
+                }
+            }
+            else
+            {
+                throw new CorpADFetchException( "Please check properties memberOf.attribute,users.base.dn,user.fetch.filter,user.profile.properties,attributeVsProperty in ldap properties file" );
+            }
+        }
+        return theUser;
+    }
+
+    /**
+     * Fetch multiple User Profiles at a time, for each user User profile will be fetched with Parent and child AD groups
+     * @param inUserIDs as  Id
+     * @return map for user profile
+     */
+    public Map<String, UserProfile> fetchUserProfiles( List<String> inUserIDs )
+        throws NamingException
+    {
+        Map<String, UserProfile> theUserDetails = null;
+        if ( inUserIDs != null && !inUserIDs.isEmpty() )
+        {
+            UserProfile theUser = null;
+            theUserDetails = new HashMap<String, UserProfile>();
+            for ( String theID : inUserIDs )
+            {
+                if ( StringUtils.isNotBlank( theID ) )
+                {
+                    theUser = fetchUserProfile( theID, true, true );
+                    theUserDetails.put( theID, theUser );
+                }
+            }
+        }
+        return theUserDetails;
+    }
+
+    /**
+     * Fetch User Profiles for single user, User profile will be fetched with Parent and child AD groups
+     * @param inUserId as Com Id
+     * @return map for user profile
+     */
+    public Map<String, UserProfile> fetchUserProfiles( String inUserId )
+        throws NamingException
+    {
+        Map<String, UserProfile> theUserDetails = null;
+        if ( inUserId != null && !inUserId.isEmpty() )
+        {
+            UserProfile theUser = null;
+            theUserDetails = new HashMap<String, UserProfile>();
+            {
+                if ( StringUtils.isNotBlank( inUserId ) )
+                {
+                    theUser = fetchUserProfile( inUserId, true, true );
+                    theUserDetails.put( inUserId, theUser );
+                }
+            }
+        }
+        return theUserDetails;
+    }
+
+    /**
+     * This method is used to retrieve all the users(with Child group) belong to the input group
+     * @param inGroupName
+     * @return Map of User id with UserProfile
+     * @throws CorpADFetchException
+     * @throws NamingException
+     */
+    public Map<String, UserProfile> getAllUserInGroup( String inGroupName )
+        throws CorpADFetchException, NamingException
+    {
+        Map<String, UserProfile> theMembers = new HashMap<String, UserProfile>();
+        getGroupMember( inGroupName, theMembers );
+        return theMembers;
+    }
+
+    /**
+     * Fetch group members based on the search result enum object and add the members 
+     * in member list and groups in groups list
+     * @param inUserDtls
+     * @param inEnum
+     * @param inFullMemberRange
+     * @param inPartialMemberRange
+     * @param inChildGroups 
+     * @return
+     * @throws NamingException
+     */
+    private boolean fetchGroupMembers( Map<String, UserProfile> inUserDtls,
+                                       NamingEnumeration<SearchResult> inEnum,
+                                       StringBuilder inFullMemberRange,
+                                       StringBuilder inPartialMemberRange,
+                                       List<String> inChildGroups )
+        throws NamingException
+    {
+        Attribute theUserAttribute = null;
+        List<String> theMembers = null;
+        Attributes theGroupAttr = null;
+        String theMemberDetails = null;
+        boolean theHasMoreMembers = true;
+        SearchResult theSearchResult = null;
+        int theSeperatorPosition = -1;
+        //Iterate through the search results
+        theSearchResult = inEnum.next();
+        if ( theSearchResult != null )
+        {
+            theGroupAttr = theSearchResult.getAttributes();
+            theUserAttribute = theGroupAttr.get( inPartialMemberRange.toString() );
+            //Data is not found in mentioned range, the complete set of members are fetched
+            //complete set of data are fetched as range:0-*
+            if ( theUserAttribute == null )
+            {
+                theUserAttribute = theGroupAttr.get( inFullMemberRange.toString() );
+                if ( theUserAttribute != null )
+                {
+                    theHasMoreMembers = false;
+                }
+            }
+            if ( theUserAttribute != null && theUserAttribute.size() > 0 )
+            {
+                theMemberDetails = theUserAttribute.toString();
+                // Modify the fetched text for further parsing
+                theSeperatorPosition = StringUtils.indexOf( theUserAttribute.toString(),
+                                                            ADAMConstants.COLON_SEPERATOR );
+                if ( theSeperatorPosition > 0 )
+                {
+                    theMemberDetails = StringUtils.substring( theMemberDetails,
+                                                              theSeperatorPosition + 1,
+                                                              theMemberDetails.length() );
+                }
+                //Extract the members from the string obtained
+                theMembers = ADAMUtility.fetchMultipleAttributes( theMemberDetails );
+                for ( String theMember : theMembers )
+                {
+                    if ( StringUtils.isNotBlank( theMember ) )
+                    {
+                        //if the member stringis numeric the this is not an user id
+                        if ( StringUtils.isNumeric( theMember ) )
+                        {
+                            inUserDtls.put( theMember, fetchUserProfile( theMember, false, false ) );
+                        }
+                        else
+                        //If member is a group, not a user
+                        {
+                            inChildGroups.add( theMember );
+                        }
+                    }
+                }
+            }
+            else
+            //If no data has been retrieved after search
+            {
+                theHasMoreMembers = false;
+            }
+        }
+        else
+        {
+            theHasMoreMembers = false;
+        }
+        return theHasMoreMembers;
+    }
+
+    /**
+     * Fetch User attributes for the users
+     * @param inFetchParent
+     * @param inUser
+     * @param inMemberAttrib
+     * @param inDirContxt
+     * @param inParents
+     * @param inAttributePropertyLink
+     * @param inUserAttributes
+     * @param inADGroupReqFlag 
+     * @throws NamingException
+     */
+    private void fetchUserAttributes( boolean inFetchParent,
+                                      UserProfile inUser,
+                                      String inMemberAttrib,
+                                      DirContext inDirContxt,
+                                      Set<String> inParents,
+                                      Map<String, String> inAttributePropertyLink,
+                                      NamingEnumeration<? extends Attribute> inUserAttributes,
+                                      boolean inADGroupReqFlag )
+        throws NamingException
+    {
+        List<String> theParentGrp = null;
+        Attribute theAttrib = null;
+        List<String> theMemberGroups = null;
+        String theAttributeID = null;
+        String theAttribValue = null;
+        if ( inUserAttributes != null )
+        {
+            theAttrib = inUserAttributes.next();
+            if ( theAttrib != null )
+            {
+                theAttributeID = theAttrib.getID();
+                theAttribValue = theAttrib.toString();
+                if ( StringUtils.isNotBlank( theAttribValue )
+                        && theAttribValue.indexOf( ADAMConstants.ATTRIB_SEPERATOR ) > 0 )
+                {
+                    theAttribValue = StringUtils.substring( theAttribValue, theAttribValue
+                            .indexOf( ADAMConstants.ATTRIB_SEPERATOR ) + 2, theAttribValue
+                            .length() );
+                    if ( StringUtils.equals( inMemberAttrib, theAttributeID ) && inADGroupReqFlag )
+                    {
+                        theMemberGroups = ADAMUtility.fetchMultipleAttributes( theAttribValue );
+                        //For inFetchParent as true, the parents of all the groups will be fetched as well
+                        if ( inFetchParent && theMemberGroups != null && !theMemberGroups.isEmpty() )
+                        {
+                            for ( String theGroup : theMemberGroups )
+                            {
+                                theParentGrp = fetchParentGroup( theGroup, inDirContxt );
+                                if ( theParentGrp != null )
+                                {
+                                    inParents.addAll( theParentGrp );
+                                }
+                            }
+                            theMemberGroups.addAll( inParents );
+                        }
+                        inUser.setADGroups( theMemberGroups );
+                    }
+                    else
+                    {
+                        //For attributes other than group, the properties are set using the map
+                        ADAMUtility.setPropertyToUser( inAttributePropertyLink, theAttributeID, inUser,
+                                                   theAttribValue );
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Fetch users for Group as Map. Key will be user id and UserProfile bean as value
+     * The parent groups of the groups in which user belongs will also be included in UserProfile Bean
+     * @param inGroup
+     * @param inChildGroups 
+     * @return
+     */
+    private Map<String, UserProfile> fetchUsersForADGroup( String inGroup,
+                                                              List<String> inChildGroups )
+        throws NamingException, CorpADFetchException
+    {
+        Map<String, UserProfile> theUserDtls = null;
+        Hashtable<String, String> theEnvParam = LDAPManager.getEnvParam();
+        String theBaseDN = LDAPManager.getProperty( ADAMConstants.GROUPS_BASE_DN );
+        if ( theEnvParam != null && StringUtils.isNotBlank( theBaseDN ) )
+        {
+            String[] theAttrID = new String[1];
+            StringBuilder theSearchStr = new StringBuilder( ADAMConstants.COMMON_NAME );
+            theSearchStr.append( inGroup );
+            DirContext theDirContxt = null;
+            NamingEnumeration<SearchResult> theEnum = null;
+            try
+            {
+                //Search in subtree as well and return only the attributes mentioned in returning attributes
+                SearchControls theControls = new SearchControls();
+                theControls.setSearchScope( SearchControls.SUBTREE_SCOPE );
+                theDirContxt = new InitialDirContext( theEnvParam );
+                String theMemberRange = ADAMConstants.MEMBER_RANGE;
+                int theStartRange = 0;
+                StringBuilder theFullMemberRange = new StringBuilder( theMemberRange )
+                        .append( theStartRange ).append( ADAMConstants.ALL_RANGE );
+                StringBuilder theRangeValue = new StringBuilder();
+                StringBuilder thePartialMemberRange = new StringBuilder();
+                int theEndRange = 1000; //End index of range when searched from 0
+                int theStep = 1000; //Number of members to be fetched at each iteration in casethe total members exceed 1000
+                boolean theHasMoreMembers = true; //This parameter determines if more search need to be done.
+                theUserDtls = new HashMap<String, UserProfile>();
+                while ( theHasMoreMembers )
+                {
+                    theRangeValue.setLength( 0 );
+                    theRangeValue.append( theStartRange ).append( ADAMConstants.DASH )
+                            .append( theEndRange );
+                    thePartialMemberRange.setLength( 0 );
+                    thePartialMemberRange.append( theMemberRange ).append( theRangeValue );
+                    theAttrID[0] = thePartialMemberRange.toString();
+                    //Search the Base DN using the search controls
+                    theControls.setReturningAttributes( theAttrID );
+                    theEnum = theDirContxt.search( theBaseDN, theSearchStr.toString(), theControls );
+                    if ( theEnum != null && theEnum.hasMoreElements() )
+                    {
+                        while ( theEnum.hasMore() )
+                        {
+                            theHasMoreMembers = fetchGroupMembers( theUserDtls, theEnum,
+                                                                   theFullMemberRange,
+                                                                   thePartialMemberRange,
+                                                                   inChildGroups );
+                        }
+                    }
+                    else
+                    {
+                        theHasMoreMembers = false;
+                    }
+                    theStartRange = theEndRange + 1;
+                    theFullMemberRange.setLength( 0 );
+                    theFullMemberRange.append( theMemberRange ).append( theStartRange )
+                            .append( ADAMConstants.DASH ).append( ADAMConstants.ALL );
+                    theEndRange += theStep;
+                }
+            }
+            finally
+            {
+                if ( theDirContxt != null )
+                {
+                    theDirContxt.close();
+                }
+                if ( theEnum != null )
+                {
+                    theEnum.close();
+                }
+            }
+        }
+        else
+        {
+            throw new CorpADFetchException( "Please check property groups.base.dn in ldap properties file" );
+        }
+        return theUserDtls;
+    }
+
+    /** 
+     * This is a recursive method to get all the members in a input group, 
+     * where there may be nested child groups also will be present
+     * @param inGroupName
+     * @param inMembers
+     * @throws CorpADFetchException
+     * @throws NamingException
+     */
+    private void getGroupMember( String inGroupName, Map<String, UserProfile> inMembers )
+        throws CorpADFetchException, NamingException
+    {
+        List<String> theChildGroups = new ArrayList<String>();
+        inMembers.putAll( this.fetchUsersForADGroup( inGroupName, theChildGroups ) );
+        if ( theChildGroups.size() > 0 )
+        {
+            for ( String theChildGrpName : theChildGroups )
+            {
+                getGroupMember( theChildGrpName, inMembers );
+            }
+        }
+    }
+}
