@@ -1,0 +1,172 @@
+
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Hashtable;
+import java.util.Properties;
+
+import javax.naming.Context;
+
+import org.apache.commons.lang.StringUtils;
+
+
+
+public class LDAPManager
+{
+    private static final String              INITIAL_CONTEXT_FACTORY = "initial.context.factory";
+    private static Hashtable<String, String> itsEnvParam             = null;
+    private static LDAPConnectionInfo        itsLDAPConnectionInfo   = null;
+    private static Properties                itsLdapProperties       = null;
+    private static final String              PROVIDER_URL            = ".provider.url";
+    private static final String              SECURITY_CREDENTIALS    = ".security.credentials";
+    private static final String              SECURITY_PRINCIPAL      = ".security.principal";
+
+    public static Hashtable<String, String> getEnvParam()
+    {
+        if ( itsEnvParam == null )
+        {
+            throw new CorpADFetchException( "CorpAD LDAP properties not initialised." );
+        }
+        return itsEnvParam;
+    }
+
+    /**
+     * 
+     * @return LDAPConnectionInfo object to make the class having single object throut the 
+     */
+    public static LDAPConnectionInfo getLdapConnectionInfo()
+    {
+        return itsLDAPConnectionInfo;
+    }
+
+    public static Properties getLdapProperties()
+    {
+        return itsLdapProperties;
+    }
+
+    /**
+     * Fetch property from ldap.properties provided
+     * @param inPropertyName
+     * @return
+     */
+    public static String getProperty( String inPropertyName )
+    {
+        String thePropertyValue = null;
+        if ( itsLdapProperties != null && StringUtils.isNotBlank( inPropertyName ) )
+        {
+            thePropertyValue = itsLdapProperties.getProperty( inPropertyName );
+        }
+        return thePropertyValue;
+    }
+
+    /**
+     * Initialize LDAP for CORP AD by reading ldap.properties provided by application
+     * The mandatory fields required are initial.context.factory,<env>.security.principal,
+     * @param inFileInputStream
+     * @param inEnviroment
+     * @throws IOException
+     * @throws CorpADFetchException
+     */
+    public static void initializeLdap( InputStream inFileInputStream, String inEnviroment )
+        throws IOException
+    {
+        if ( inFileInputStream != null )
+        {
+            try
+            {
+                populateCorpadEnvPropertyToMap( inEnviroment, inFileInputStream );
+                itsLDAPConnectionInfo = new LDAPConnectionInfo();
+            }
+            finally
+            {
+                inFileInputStream.close();
+            }
+        }
+    }
+
+    /**
+     * Initialize LDAP for CORP AD by reading ldap.properties provided by application
+     * The mandatory fields required are initial.context.factory,<env>.security.principal,
+     * <env>.provider.url,<env>.security.credentials
+     * @param inPropertiesFile
+     * @param inEnviroment
+     * @throws CorpADFetchException
+     */
+    public static void initializeLdap( String inPropertiesFile, String inEnviroment )
+        throws IOException
+    {
+        if ( StringUtils.isNotBlank( inEnviroment ) && StringUtils.isNotBlank( inPropertiesFile ) )
+        {
+            InputStream theFileInputStream = null;
+            try
+            {
+                theFileInputStream = new FileInputStream( inPropertiesFile );
+                populateCorpadEnvPropertyToMap( inEnviroment, theFileInputStream );
+                itsLDAPConnectionInfo = new LDAPConnectionInfo();
+            }
+            finally
+            {
+                if ( theFileInputStream != null )
+                {
+                    theFileInputStream.close();
+                }
+            }
+        }
+    }
+
+    /**
+     * Method used to set the LADAP environment specific properties into the system
+     * @param inEnviroment
+     * @param theFileInputStream
+     * @throws IOException
+     * @throws CorpADFetchException
+     */
+    private static void populateCorpadEnvPropertyToMap( String inEnviroment,
+                                                        InputStream inFileInputStream )
+        throws IOException, CorpADFetchException
+    {
+        inEnviroment = StringUtils.lowerCase( inEnviroment );
+        itsLdapProperties = new Properties();
+        itsLdapProperties.load( inFileInputStream );
+        itsEnvParam = new Hashtable<String, String>();
+        String theContextFactory = itsLdapProperties.getProperty( INITIAL_CONTEXT_FACTORY );
+        if ( StringUtils.isNotBlank( theContextFactory ) )
+        {
+            itsEnvParam.put( Context.INITIAL_CONTEXT_FACTORY, theContextFactory );
+        }
+        else
+        {
+            throw new IOException( "Please provide value for initial context factory" );
+        }
+        String theProviderUrl = itsLdapProperties.getProperty( inEnviroment + PROVIDER_URL );
+        if ( StringUtils.isNotBlank( theProviderUrl ) )
+        {
+            itsEnvParam.put( Context.PROVIDER_URL, theProviderUrl );
+        }
+        else
+        {
+            throw new IOException( "Please provide value for provider url" );
+        }
+        String theSecurityPrincipal = itsLdapProperties.getProperty( inEnviroment
+                + SECURITY_PRINCIPAL );
+        if ( StringUtils.isNotBlank( theSecurityPrincipal ) )
+        {
+            itsEnvParam.put( Context.SECURITY_PRINCIPAL, theSecurityPrincipal );
+        }
+        else
+        {
+            throw new IOException( "Please provide value for security principal" );
+        }
+        String theSecurityCredentials = itsLdapProperties.getProperty( inEnviroment
+                + SECURITY_CREDENTIALS );
+        if ( StringUtils.isNotBlank( theSecurityCredentials ) )
+        {
+            itsEnvParam.put( Context.SECURITY_CREDENTIALS, theSecurityCredentials );
+        }
+        else
+        {
+            throw new IOException( "Please provide value for security password" );
+        }
+    }
+}
