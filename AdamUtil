@@ -1,0 +1,123 @@
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.commons.lang.StringUtils;
+
+
+
+
+public class ADAMUtility
+{
+    /**
+     * Fetch map with key as LDAP attribute and value asUserProfile bean property name
+     * @param inAttributeProperty
+     * @return
+     */
+    public static Map<String, String> fetchAttributePropertyMap( String inAttributeProperty )
+    {
+        Map<String, String> theAttributeProperties = null;
+        if ( StringUtils.isNotBlank( inAttributeProperty ) )
+        {
+            theAttributeProperties = new HashMap<String, String>();
+            String[] theAttributes = StringUtils.split( inAttributeProperty,
+                                                        ADAMConstants.SEMICOLON_SEPERATOR );
+            String[] thePropertyAttrib = null;
+            if ( theAttributes != null && theAttributes.length > 0 )
+            {
+                for ( String theAttribute : theAttributes )
+                {
+                    thePropertyAttrib = StringUtils.split( theAttribute,
+                                                           ADAMConstants.COLON_SEPERATOR );
+                    if ( thePropertyAttrib != null && thePropertyAttrib.length == 2 )
+                    {
+                        theAttributeProperties.put( thePropertyAttrib[0], thePropertyAttrib[1] );
+                    }
+                }
+            }
+        }
+        return theAttributeProperties;
+    }
+
+    /**
+     * Parse values from attribute string fetched from LDAP
+     * @param theAttribValue
+     * @return
+     */
+    public static List<String> fetchMultipleAttributes( String inAttribValue )
+    {
+        Set<String> theUniqueAttr = null;
+        List<String> theMemberGroups = null;
+        String[] theGroupParts = null;
+        String[] theADgroups = null;
+        theGroupParts = StringUtils.splitByWholeSeparator( inAttribValue,
+                                                           ADAMConstants.COMMON_NAME );
+        if ( theGroupParts != null )
+        {
+            theUniqueAttr = new HashSet<String>();
+            for ( String theGroup : theGroupParts )
+            {
+                theADgroups = StringUtils.split( theGroup, ADAMConstants.COMMA );
+                if ( StringUtils.isNotBlank( theADgroups[0] ) )
+                {
+                    theUniqueAttr.add( theADgroups[0] );
+                }
+            }
+            theMemberGroups = new ArrayList<String>( theUniqueAttr );
+        }
+        return theMemberGroups;
+    }
+
+    /**
+     * Set property to UserProfile bean
+     * @param inAttributeProperty
+     * @param inAttributeID
+     * @param inUser
+     * @param inPropertyValue
+     */
+    public static void setPropertyToUser( Map<String, String> inAttributeProperty,
+                                          String inAttributeID,
+                                          UserProfile inUser,
+                                          String inPropertyValue )
+        throws CorpADFetchException
+    {
+        if ( inAttributeProperty != null && StringUtils.isNotBlank( inAttributeID )
+                && inUser != null )
+        {
+            String thePropertyName = inAttributeProperty.get( inAttributeID );
+            if ( StringUtils.isNotBlank( thePropertyName ) )
+            {
+                String theSetterName = ADAMConstants.SETTER_PREFIX
+                        + StringUtils.capitalize( thePropertyName );
+                try
+                {
+                    Method theSetter = inUser.getClass().getMethod( theSetterName, String.class );
+                    theSetter.invoke( inUser, inPropertyValue );
+                }
+                catch ( SecurityException ex )
+                {
+                    throw new CorpADFetchException( "Unable to set LDAP property to UserProfile bean as trying to access private method" );
+                }
+                catch ( NoSuchMethodException ex )
+                {
+                    throw new CorpADFetchException( "Unable to set LDAP property to UserProfile bean as no such method exists as "
+                            + theSetterName );
+                }
+                catch ( InvocationTargetException ex )
+                {
+                    throw new CorpADFetchException( ex );
+                }
+                catch ( IllegalAccessException ex )
+                {
+                    throw new CorpADFetchException( ex );
+                }
+            }
+        }
+    }
+}
