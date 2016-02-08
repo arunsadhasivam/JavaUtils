@@ -1,0 +1,25 @@
+
+
+public class ADAMConstants 
+{
+    public static final String ALL                   = "*";
+    public static final String ALL_RANGE             = "-*";
+    public static final String ATTRIB_SEPERATOR      = ": ";
+    public static final String ATTRIBUTE_VS_PROPERTY = "attributeVsProperty";
+    public static final String ATTRIBUTES            = "user.profile.properties";
+    public static final String COLON_SEPERATOR       = ":";
+    public static final String COMMA                 = ",";
+    public static final String COMMON_NAME           = "CN=";
+    public static final String DASH                  = "-";
+    public static final String EXT_13_ATTR           = "(&(extensionAttribute13=dl pid - ";
+    public static final String GROUPS_BASE_DN        = "groups.base.dn";
+    public static final String MEMBER_OF_ATTRIB      = "memberOf.attribute";
+    public static final String MEMBER_RANGE          = "member;range=";
+    public static final String SEMICOLON_SEPERATOR   = ";";
+    public static final String SETTER_PREFIX         = "set";
+    public static final String SPACE                 = " ";
+    public static final String USER_BASE_DN          = "users.base.dn";
+    public static final String USER_FETCH_FILTER     = "user.fetch.filter";
+    public static final String USER_PLACEHOLDER      = "<USER>";
+    public static final String ZERO                  = "0";
+}
