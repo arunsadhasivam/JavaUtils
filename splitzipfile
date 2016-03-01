@@ -122,9 +122,47 @@ public class ChunkZipOutputStream {
 	}
 	
 	public static void main(String args[]){
+
+	 generateZipFolder()
+	}
+	
+	private static void generateZipFolder(){
+    	String rootPath = FileReader.getProperty(CommonConstants.LOCAL_PATH+theEnv);
+    	List<String> fileList = new ArrayList<String>();
+    	FileInputStream fis = null;
+    	String zipFolder = FileReader.getProperty(CommonConstants.NQP_ZIP_DIR);
+	String zipFile = FileReader.getProperty(CommonConstants.NQP_ZIP_FILE);
 	String zipFolder = "c:\test";
 	String zipFile = "chunk1.zip"
-	chunkStream = new ChunkZipOutputStream(zipFolder, zipFile);
+    	ChunkZipOutputStream chunkStream = null;
+		 
+		try {
+			chunkStream = new ChunkZipOutputStream(zipFolder, zipFile);
+			fileList = FileUtils.listFiles(fileList,rootPath);
+			for(String file : fileList){
+				fis = new FileInputStream(file);
+				file = file.replace(CommonConstants.DOUBLE_SLASH,CommonConstants.SINGLE_SLASH);
+				file = file.replaceAll(rootPath, CommonConstants.EMPTY);
+				ZipEntry ze = new ZipEntry(file);
+				chunkStream.addEntry(ze);
+				chunkStream.write(fis);
+			}	
+			
+ 		} catch ( IOException e) {
+			itsLogger.error("generateZipFolder:IOException:" + e);
+		}finally{
+			try {
+				if(fis!=null){
+					fis.close();
+				}
+				if(chunkStream!=null){
+					chunkStream.closeEntry();
+					chunkStream.closeStream();
+				}
+			} catch (IOException e) {
+				itsLogger.error("generateZipFolder:close:IOException:" + e);
+			}
+		}
 	
 	
 }
