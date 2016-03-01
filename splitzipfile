@@ -120,4 +120,11 @@ public class ChunkZipOutputStream {
 		
 		return partNameBuilder.toString();
 	}
+	
+	public static void main(String args[]){
+	String zipFolder = "c:\test";
+	String zipFile = "chunk1.zip"
+	chunkStream = new ChunkZipOutputStream(zipFolder, zipFile);
+	
+	
 }
