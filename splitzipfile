@@ -18,7 +18,7 @@ import org.apache.log4j.Logger;
  * 
  */
 public class ChunkZipOutputStream {
-	/** variable to hold logger constant **/
+/** variable to hold logger constant **/
 	private static Logger itsLogger = LogManager
 			.getLogger(ChunkZipOutputStream.class);
 
@@ -44,7 +44,9 @@ public class ChunkZipOutputStream {
 	 */
 	public void addEntry(ZipEntry entry) throws IOException {
 		long entrySize = entry.getCompressedSize();
-		if ((currentSize ) > toMB(CommonConstants.MAX_BYTE_SIZE)) {
+		long maxZipSize = CommonConstants.MAX_BYTE_SIZE;
+		if ((MigrationUtils.toMB(currentSize + entrySize)) > maxZipSize) {
+			zipOutputStream.putNextEntry(entry);
 			closeStream();
 			constructNewStream();
 		} else {
@@ -68,12 +70,6 @@ public class ChunkZipOutputStream {
 		currentSize = 0;
 	}
 	
-	/**
-	 * To convert byte to MB
-	 */
-    private long toMB(long byteSize){
-    	return byteSize;
-    }
 	
 	
 	/**
@@ -86,7 +82,7 @@ public class ChunkZipOutputStream {
 		try {
 			while ((length = fis.read(b)) >= 0) {
 				zipOutputStream.write(b, 0, length);
-				currentSize+= toMB(length);
+				currentSize+= length;
 			}
 		} catch (IOException e) {
 			itsLogger.error("ChunkZipOutputStream:write:" + e);
@@ -112,7 +108,7 @@ public class ChunkZipOutputStream {
 	private String constructCurrentPartName() {
 		// This will give names is the form of <file_name>.part.0.zip,
 		// <file_name>.part.1.zip, etc.
-		zipName= zipName.replace(CommonConstants.PART_POSTFIX, CommonConstants.EMPTY);
+		zipName= zipName.replace(CommonConstants.ZIP, CommonConstants.EMPTY);
 		StringBuilder partNameBuilder = new StringBuilder(zipName);
 		partNameBuilder.append(CommonConstants.PART_POSTFIX);
 		partNameBuilder.append(currentChunkIndex);
