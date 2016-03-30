@@ -46,9 +46,10 @@ public class ChunkZipOutputStream {
 		long entrySize = entry.getCompressedSize();
 		long maxZipSize = CommonConstants.MAX_BYTE_SIZE;
 		if ((MigrationUtils.toMB(currentSize + entrySize)) > maxZipSize) {
-			zipOutputStream.putNextEntry(entry);
 			closeStream();
 			constructNewStream();
+			zipOutputStream.putNextEntry(entry);
+
 		} else {
 			currentSize += entrySize;
 			zipOutputStream.putNextEntry(entry);
