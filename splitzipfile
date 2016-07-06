@@ -18,9 +18,8 @@ import org.apache.log4j.Logger;
  * 
  */
 public class ChunkZipOutputStream {
-/** variable to hold logger constant **/
-	private static Logger itsLogger = LogManager
-			.getLogger(ChunkZipOutputStream.class);
+	/** variable to hold logger constant **/
+	private static Logger itsLogger = LogManager.getLogger(ChunkZipOutputStream.class);
 
 	private ZipOutputStream zipOutputStream;
 
@@ -42,14 +41,23 @@ public class ChunkZipOutputStream {
 	 * @param entry
 	 * @throws IOException
 	 */
-	public void addEntry(ZipEntry entry) throws IOException {
-		long entrySize = entry.getCompressedSize();
+	public void addEntry(ZipEntry entry, FileInputStream checkSize) throws IOException {
+		long entrySize = 0;
+		byte b[] = new byte[1024];
+		int length;		 
+		try {
+			while ((length = checkSize.read(b)) >= 0) {
+				entrySize+= length;
+			}
+		} catch (Exception e) {
+			itsLogger.error("addEntry - calculate size error: " + e.getMessage());
+		}
 		long maxZipSize = CommonConstants.MAX_BYTE_SIZE;
-		if ((MigrationUtils.toMB(currentSize + entrySize)) > maxZipSize) {
+		if ((MigrationUtils.toMB(currentSize + entrySize)) > (maxZipSize-1)  ) {
 			closeStream();
 			constructNewStream();
+			currentSize += entrySize;
 			zipOutputStream.putNextEntry(entry);
-
 		} else {
 			currentSize += entrySize;
 			zipOutputStream.putNextEntry(entry);
@@ -83,10 +91,10 @@ public class ChunkZipOutputStream {
 		try {
 			while ((length = fis.read(b)) >= 0) {
 				zipOutputStream.write(b, 0, length);
-				currentSize+= length;
+				//currentSize+= length;
 			}
 		} catch (IOException e) {
-			itsLogger.error("ChunkZipOutputStream:write:" + e);
+			itsLogger.error("ChunkZipOutputStream:write:" + e.getMessage());
 		}
 
 	}
