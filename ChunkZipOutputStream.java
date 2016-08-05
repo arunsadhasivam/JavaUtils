@@ -125,4 +125,54 @@ public class ChunkZipOutputStream {
 
 		return partNameBuilder.toString();
 	}
+	
+/*public static void main(String args[]){
+  public static void generateZipFolder(String theEnv){
+    	String rootPath = FileReader.getProperty(CommonConstants.LOCAL_PATH+theEnv);
+    	List<String> fileList = new ArrayList<String>();
+    	FileInputStream fis = null;
+    	String zipFolder = FileReader.getProperty(CommonConstants.NQP_ZIP_DIR);
+		String zipFile = FileReader.getProperty(CommonConstants.NQP_ZIP_FILE);
+		String csvFile = FileReader.getProperty(CommonConstants.NQP_ATTCH_SUMMARY);
+    	ChunkZipOutputStream chunkStream = null;
+		 
+		try {
+			chunkStream = new ChunkZipOutputStream(zipFolder, zipFile);
+			fileList = FileUtility.listFiles(fileList,rootPath);
+			for(String file : fileList){
+				file = file.replace(CommonConstants.DOUBLE_SLASH,CommonConstants.SINGLE_SLASH);
+				String orgFolder = file.substring(0,file.lastIndexOf(CommonConstants.SINGLE_SLASH));
+				int index = orgFolder.lastIndexOf(CommonConstants.SINGLE_SLASH)+1;
+				if (file.endsWith(csvFile) || isChunk(file)) {
+					//To Avoid Adding summary file in zip file.
+					continue;
+				}
+				fis = new FileInputStream(file);
+				file = file.replaceAll(rootPath, CommonConstants.EMPTY);
+				ZipEntry ze = new ZipEntry(file);
+				chunkStream.addEntry(ze,fis);
+				chunkStream.write(fis);
+			}	
+			
+ 		} catch ( IOException e) {
+			itsLogger.error("generateZipFolder:IOException:" + e);
+		}finally{
+			try {
+				if(fis!=null){
+					fis.close();
+				}
+				if(chunkStream!=null){
+					chunkStream.closeEntry();
+					chunkStream.closeStream();
+				}
+			} catch (IOException e) {
+				itsLogger.error("generateZipFolder:close:IOException:" + e);
+			}
+		}
+    }
+		
+	}
+*/	
 }
+
+
