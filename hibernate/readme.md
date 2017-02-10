@@ -43,4 +43,19 @@ Okay, so you want to print out all the details of phone models. A naive O/R impl
 
 "from MobileVendor mobileVendor join fetch mobileVendor.phoneModel PhoneModels"
 
-3)
+3)hibernate 2nd level cache:
+=============================
+<property name="cache.provider_class">org.hibernate.cache.EhCacheProvider</property>  
+<property name="hibernate.cache.use_second_level_cache">true</property>  
+<cache usage="read-only" />  
+3) Create ehcache.xml file
+
+<?xml version="1.0"?>  
+<ehcache>  
+  
+<defaultCache   
+maxElementsInMemory="100"   
+eternal="true"/>  
+  
+</ehcache>  
+
