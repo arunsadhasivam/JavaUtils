@@ -72,18 +72,17 @@ public int compareDate1(String strDate1,String strDate2){
 			
 			System.out.println("DateUtils.compareDate1() : BEFORE ::::"+print(calFromDate) +" -" +print(calToDate) + " -" + print(calImputedDate));
 			int totalDaysbtwYear=0;
-			int leapcount =0;
 			int totalDays = 0;
 			int yearCount =0;
+			boolean isExist  = false;
 			while(calFromDate.compareTo(calImputedDate)<=0  && 
 					calImputedDate.compareTo(calToDate)<=0  ){
 				yearCount++;
-				
+				isExist = true;
 				long diff = daysBetween(calFromDate, calImputedDate);
 				int year = calFromDate.get(Calendar.YEAR);
 				//leap -366
 				if(calFromDate.isLeapYear(year)){
-					leapcount ++;
 					totalDaysbtwYear+= diff;
 					totalDays += 366;
 					//System.out.println("DateUtils.compareDate1():year"+year +" is leap year " + print(calFromDate) +" -" +print(calImputedDate) + " diff:"+ diff);
@@ -97,11 +96,11 @@ public int compareDate1(String strDate1,String strDate2){
 			   calFromDate.add(Calendar.YEAR, 1);
 			   calImputedDate.add(Calendar.YEAR, 1);
 			}
-			 calImputedDate.add(Calendar.YEAR, -1);
-			 int year = calImputedDate.get(Calendar.YEAR);
-			 if(calImputedDate.isLeapYear(year)){
-				 leapcount++;
+			
+			 if(isExist ){
+				 calImputedDate.add(Calendar.YEAR, -1);
 			 }
+			  
 			 
 			 
 			 System.out.println("DateUtils.compareDate1():remaining:"+print(calImputedDate) +" -" +print(calToDate) + "diff:"+daysBetween(calImputedDate,calToDate));
@@ -111,10 +110,15 @@ public int compareDate1(String strDate1,String strDate2){
 			 
 			 
 			 System.out.println("DateUtils.compareDate1():totalDaysbtwYear:::"+totalDaysbtwYear + " totalDays" +totalDays);
-			int avg = (totalDays/yearCount);
-			int years = totalDaysbtwYear/avg;
-			
-			System.out.println("DateUtils.compareDate1()"+years);
+			if(yearCount>0){
+				int avg = (totalDays/yearCount);
+				//int years = totalDaysbtwYear/avg;
+				int years = totalDaysbtwYear/365; //if first is 366 - second year is 364 it takes and consider as 2 year
+				
+				System.out.println("DateUtils.compareDate1()"+years);
+			}else{
+				System.out.println("DateUtils.compareDate1()"+yearCount);
+			}
 		} catch (ParseException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -122,6 +126,48 @@ public int compareDate1(String strDate1,String strDate2){
 		
 		return maxyears;
 	}
+
+
+
+public int compareDate3(String strDate1,String strDate2){
+	
+	SimpleDateFormat df = new SimpleDateFormat("MMddyyyy");
+	int maxyears = 0;
+	try {
+		Date date1 =   df.parse(strDate1);
+		Date date2 =   df.parse(strDate2);
+		
+		GregorianCalendar calFromDate = new GregorianCalendar();
+		calFromDate.setTime(date1);
+		
+		GregorianCalendar calToDate = new GregorianCalendar();
+		calToDate.setTime(date2);
+		
+		
+		
+		GregorianCalendar calImputedDate = new GregorianCalendar();
+		calImputedDate.setTime(date1);
+		calImputedDate.add(Calendar.YEAR, 1);
+		
+		System.out.println("DateUtils.compareDate1() : BEFORE ::::"+print(calFromDate) +" -" +print(calToDate) + " -" + print(calImputedDate));
+		int yearCount =0;
+		while(calFromDate.compareTo(calImputedDate)<=0  && 
+				calImputedDate.compareTo(calToDate)<=0  ){
+			yearCount++;
+			
+		   calFromDate.add(Calendar.YEAR, 1);
+		   calImputedDate.add(Calendar.YEAR, 1);
+		}
+		 
+		 
+		 System.out.println("DateUtils.compareDate1():yearCount:::"+yearCount );
+	} catch (ParseException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}
+	
+	return maxyears;
+}
 
  
 
@@ -135,13 +181,6 @@ public int compareDate1(String strDate1,String strDate2){
 		
 	}
 	
-    private int daysBetween1(GregorianCalendar  cal1, GregorianCalendar cal2){
-    	int year1 = cal1.get(Calendar.DAY_OF_MONTH);
-    	int year2= cal2.get(Calendar.YEAR);
-    	
-    	
-    	return year2- year1;
-    }
 
     public String print(Calendar calFromDate){
     	
