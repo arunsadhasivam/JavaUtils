@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Company id="d01">
+<Company id="Company0">
 	<employees>
 		<employee>
-			<employeeId>resource0-000000000</<employeeId>
+			<employeeId>Employee-0</employeeId>
 			<experiences>
-				<experience>permission0.1-000</experience>
-				<experience>permission0.3-000</experience>
-				<experience>permission0.5-000</experience>
+				<experience>Experience0 - java</experience>
+				<experience>Experience0-spring</experience>
+				<experience>Experience0-hibernate</experience>
 			</experiences>
 		</employee>
 		<employee>
-			<employeeId>resource1-111111111111
+			<employeeId>Employee-1
 			</employeeId>
 			<experiences>
-				<experience>permission1-1111-11-1111\
+				<experience>Experience1-DBA
 				</experience>
 			</experiences>
 		</employee>
