@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<distributionDefinition id="d01">
+	<resourcePermissions>
+		<resourcePermission>
+			<resourceIdentifier>resource0-000000000</resourceIdentifier>
+			<permissionIdentifiers>
+				<permissionIdentifier>permission0.1-000</permissionIdentifier>
+				<permissionIdentifier>permission0.3-000</permissionIdentifier>
+				<permissionIdentifier>permission0.5-000</permissionIdentifier>
+			</permissionIdentifiers>
+		</resourcePermission>
+		<resourcePermission>
+			<resourceIdentifier>resource1-111111111111
+			</resourceIdentifier>
+			<permissionIdentifiers>
+				<permissionIdentifier>permission1-1111-11-1111
+				</permissionIdentifier>
+			</permissionIdentifiers>
+		</resourcePermission>
+	</resourcePermissions>
+</distributionDefinition>
+
